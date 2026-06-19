@@ -1,0 +1,24 @@
+name: Sync Jules Status on PR Merge
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  sync_jules_sessions:
+    if: github.event.pull_request.merged == true
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Jules Status Sync
+        env:
+          GH_PAT_READ: ${{ secrets.GH_PAT_READ }}
+          JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
+          PROJECT_BASE_PATH: ${{ github.workspace }}\
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/sync-jules-status.ps1
+      - name: Install dependencies
+        run: npm install -g pnpm && pnpm install
+      - name: Run Tests
+        run: pnpm test
