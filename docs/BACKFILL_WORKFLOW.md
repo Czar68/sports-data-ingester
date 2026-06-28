@@ -4,25 +4,53 @@ This document outlines the process for running and validating historical data ba
 
 ## MLB Backfill Script
 
-The MLB historical backfill script is used to ingest historical games and boxscores.
+The historical backfill script is used to ingest historical games and boxscores. It currently supports MLB, with NFL deferred to a later phase.
 
 ### How to Run
 
 To execute the MLB backfill, run the following command from the repository root:
 
 ```bash
-python scripts/mlb_backfill.py
+python scripts/historical_backfill.py --sport mlb --start-date YYYY-MM-DD --end-date YYYY-MM-DD --chunk-size N
 ```
-*(Note: Adjust the script path if the MLB backfill script is located elsewhere.)*
+
+**Arguments:**
+- `--sport`: Currently, `mlb` is the only supported target. `nfl` acts as a placeholder that safely exits.
+- `--start-date` and `--end-date`: Defines the backfill window.
+- `--chunk-size`: Controls how many days will be processed per run. Defaults to 30.
+- `--delay`: Adds sleep to rate limit API requests. Defaults to 1.0 second.
+
+## Import Strategy & Best Practices
+
+To ensure data integrity, always use the following strategy when running new backfills:
+
+### 1. One-Day Validation First
+Before processing a large timeframe, test a **single day** first:
+```bash
+python scripts/historical_backfill.py --sport mlb --start-date 2024-04-01 --end-date 2024-04-01 --chunk-size 1
+```
+After the run completes, halt and validate the database directly. Check that the script gracefully created and populated the tables without errors or anomalies.
+
+### 2. Idempotency Check
+Once the single day completes, **re-run the exact same command**. The script should report that the day was skipped because it is already completed. This proves the idempotency and checkpointing feature is working properly.
+
+### 3. Chunking the Remainder
+Once validated, you may expand the date range to the intended window. Keep the `--chunk-size` argument reasonable to ensure smooth checkpointing during large multi-season backfills.
 
 ## Validation Steps
 
-After running the backfill script, you must validate the data integrity. Ensure the following conditions are met:
+After running the backfill script, you must validate the data integrity. Open an interactive sqlite shell to `sports_historical.db` and ensure the following conditions are met:
 
-1. **Checkpointing**: Verify that the backfill script correctly created and updated checkpoints so that partial runs can be resumed without duplicating work. Check the designated checkpoint file or database table.
-2. **`historical_games`**: Confirm that the `historical_games` table contains the expected number of records for the targeted backfill period.
-3. **`historical_mlb_boxscores`**: Confirm that the `historical_mlb_boxscores` table contains the detailed boxscore data corresponding to the historical games. Check for completeness and proper schema mapping.
-4. **`sports_data.db` Integrity**: Confirm that the primary live ingestion database (`sports_data.db`) remains completely unchanged. The historical backfill must isolate its data (e.g., using a separate `historical_data.db` or specific historical tables that do not interfere with the live `sports_data.db` state).
+1. **Checkpointing (`backfill_checkpoints` table)**:
+   - Run `SELECT * FROM backfill_checkpoints;`
+   - Verify that the processed dates have a `completed` status and accurate `games_found` counts.
+2. **`historical_games`**:
+   - Run `SELECT count(*) FROM historical_games;`
+   - Confirm the count roughly aligns with the number of games expected in the provided timeframe.
+3. **`historical_mlb_boxscores`**:
+   - Run `SELECT count(*) FROM historical_mlb_boxscores;`
+   - Ensure the detailed boxscore data corresponding to the historical games has been inserted. Both `batter` and `pitcher` roles should be present in this single table.
+4. **`sports_data.db` Integrity**: Confirm that the primary live ingestion database (`sports_data.db`) remains completely unchanged. The historical backfill must isolate its data in `sports_historical.db` so it does not interfere with the live state.
 
 ## NFL Phase 2 Prerequisites & Decisions
 
