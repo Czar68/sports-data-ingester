@@ -114,6 +114,25 @@ def fetch_espn_mlb_summary(game_id: str) -> dict:
         logger.error(f"Failed to fetch summary for game {game_id}: {e}")
         return {}
 
+def _parse_batting_stats(stats: list, keys: list) -> tuple:
+    hits = int(stats[keys.index('hits')]) if 'hits' in keys else 0
+    rbi = int(stats[keys.index('RBIs')]) if 'RBIs' in keys else 0
+    home_runs = int(stats[keys.index('homeRuns')]) if 'homeRuns' in keys else 0
+    strikeouts = int(stats[keys.index('strikeouts')]) if 'strikeouts' in keys else 0
+    walks = int(stats[keys.index('walks')]) if 'walks' in keys else 0
+    earned_runs = 0
+    role = 'batter'
+    return hits, rbi, home_runs, strikeouts, walks, earned_runs, role
+
+def _parse_pitching_stats(stats: list, keys: list) -> tuple:
+    hits = int(stats[keys.index('hits')]) if 'hits' in keys else 0
+    rbi = 0
+    earned_runs = int(stats[keys.index('earnedRuns')]) if 'earnedRuns' in keys else 0
+    strikeouts = int(stats[keys.index('strikeouts')]) if 'strikeouts' in keys else 0
+    walks = int(stats[keys.index('walks')]) if 'walks' in keys else 0
+    home_runs = int(stats[keys.index('homeRuns')]) if 'homeRuns' in keys else 0
+    role = 'pitcher'
+    return hits, rbi, home_runs, strikeouts, walks, earned_runs, role
 def parse_mlb_boxscore(summary_data: dict, game_id: str, game_date: str) -> list:
     """Parses MLB boxscore data into standard rows."""
     boxscore = summary_data.get('boxscore', {})
@@ -132,24 +151,11 @@ def parse_mlb_boxscore(summary_data: dict, game_id: str, game_date: str) -> list
                 athlete = athlete_data.get('athlete', {})
                 stats = athlete_data.get('stats', [])
 
-                # Default stats
-                hits, rbi, home_runs, strikeouts, walks, earned_runs = 0, 0, 0, 0, 0, 0
-
                 try:
                     if stat_type == 'batting':
-                        hits = int(stats[keys.index('hits')]) if 'hits' in keys else 0
-                        rbi = int(stats[keys.index('RBIs')]) if 'RBIs' in keys else 0
-                        home_runs = int(stats[keys.index('homeRuns')]) if 'homeRuns' in keys else 0
-                        strikeouts = int(stats[keys.index('strikeouts')]) if 'strikeouts' in keys else 0
-                        walks = int(stats[keys.index('walks')]) if 'walks' in keys else 0
-                        role = 'batter'
+                        hits, rbi, home_runs, strikeouts, walks, earned_runs, role = _parse_batting_stats(stats, keys)
                     elif stat_type == 'pitching':
-                        hits = int(stats[keys.index('hits')]) if 'hits' in keys else 0
-                        earned_runs = int(stats[keys.index('earnedRuns')]) if 'earnedRuns' in keys else 0
-                        strikeouts = int(stats[keys.index('strikeouts')]) if 'strikeouts' in keys else 0
-                        walks = int(stats[keys.index('walks')]) if 'walks' in keys else 0
-                        home_runs = int(stats[keys.index('homeRuns')]) if 'homeRuns' in keys else 0
-                        role = 'pitcher'
+                        hits, rbi, home_runs, strikeouts, walks, earned_runs, role = _parse_pitching_stats(stats, keys)
                     else:
                         continue # Skip fielding etc.
                 except (ValueError, IndexError):
