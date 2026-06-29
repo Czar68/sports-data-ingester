@@ -60,7 +60,7 @@ class OddsAPIIngestor(BaseIngestor):
                 # We use the bookmaker's last_update for the market
                 last_update_str = bookmaker.get("last_update")
                 # Handle ISO formatting that might contain Z
-                if last_update_str.endswith('Z'):
+                if last_update_str and isinstance(last_update_str, str) and last_update_str.endswith('Z'):
                     last_update_str = last_update_str[:-1] + '+00:00'
                 last_update = datetime.fromisoformat(last_update_str) if last_update_str else datetime.utcnow()
 
@@ -72,7 +72,7 @@ class OddsAPIIngestor(BaseIngestor):
 
         # Parse commence time
         commence_time_str = raw_data.get("commence_time")
-        if commence_time_str and commence_time_str.endswith('Z'):
+        if commence_time_str and isinstance(commence_time_str, str) and commence_time_str.endswith('Z'):
             commence_time_str = commence_time_str[:-1] + '+00:00'
         commence_time = datetime.fromisoformat(commence_time_str) if commence_time_str else datetime.utcnow()
 

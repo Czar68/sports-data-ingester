@@ -1,3 +1,4 @@
+import requests
 import sqlite3
 import os
 import logging
@@ -233,17 +234,19 @@ def process_mlb_date(date: str, delay: float = 1.0) -> bool:
                 summary_data = fetch_espn_mlb_summary(game_id)
                 boxscore_rows = parse_mlb_boxscore(summary_data, game_id, date)
 
-                for row in boxscore_rows:
-                    cursor.execute('''
+                if boxscore_rows:
+                    boxscore_data = [(
+                        row['game_id'], row['game_date'], row['player_id'], row['player_name'],
+                        row['team'], row['role'], row['hits'], row['rbi'], row['home_runs'],
+                        row['strikeouts'], row['walks'], row['earned_runs']
+                    ) for row in boxscore_rows]
+
+                    cursor.executemany('''
                         INSERT INTO historical_mlb_boxscores
                         (game_id, game_date, player_id, player_name, team, role,
                          hits, rbi, home_runs, strikeouts, walks, earned_runs)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (
-                        row['game_id'], row['game_date'], row['player_id'], row['player_name'],
-                        row['team'], row['role'], row['hits'], row['rbi'], row['home_runs'],
-                        row['strikeouts'], row['walks'], row['earned_runs']
-                    ))
+                    ''', boxscore_data)
 
             cursor.execute("COMMIT")
             games_processed += 1
