@@ -31,6 +31,7 @@ async def init_db():
             )
         ''')
 
+
         await db.execute('''
             CREATE TABLE IF NOT EXISTS outcomes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -42,5 +43,13 @@ async def init_db():
             )
         ''')
 
+        await db.execute('''
+            CREATE TABLE IF NOT EXISTS entity_aliases (
+                alias TEXT PRIMARY KEY,
+                player_id TEXT NOT NULL
+            )
+        ''')
+
         await db.commit()
+
     logger.info("Database initialized successfully.")
